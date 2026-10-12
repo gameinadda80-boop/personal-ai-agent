@@ -1,33 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal AI Agent</title>
+    <!-- Load Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 50px auto; background-color: #f4f4f9; }
-        #chat-box { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; height: 500px; overflow-y: scroll; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .user-msg { color: #0056b3; margin: 10px 0; padding: 10px; background: #e6f2ff; border-radius: 8px; }
-        .ai-msg { color: #333; margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 8px; }
-        .ai-msg p { margin: 5px 0; }
-        .ai-msg ul { margin: 5px 0; padding-left: 20px; }
+        /* --- Light Theme (Default) --- */
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --chat-bg: #ffffff;
+            --chat-border: #ddd;
+            --user-bg: #e6f2ff;
+            --user-text: #0056b3;
+            --ai-bg: #f9f9f9;
+            --ai-text: #333;
+            --input-bg: #ffffff;
+            --input-border: #ccc;
+            --btn-bg: #0056b3;
+            --btn-text: #ffffff;
+            --btn-hover: #004494;
+        }
+
+        /* --- Dark Theme --- */
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --chat-bg: #2d2d2d;
+            --chat-border: #444;
+            --user-bg: #1e3a5f;
+            --user-text: #90caf9;
+            --ai-bg: #383838;
+            --ai-text: #e0e0e0;
+            --input-bg: #2d2d2d;
+            --input-border: #555;
+            --btn-bg: #007bff;
+            --btn-text: #ffffff;
+            --btn-hover: #0056b3;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        #chat-box {
+            background: var(--chat-bg);
+            border: 1px solid var(--chat-border);
+            border-radius: 10px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: background 0.3s, border 0.3s;
+        }
+
+        .user-msg {
+            color: var(--user-text);
+            margin: 10px 0;
+            padding: 12px;
+            background: var(--user-bg);
+            border-radius: 10px;
+            border-bottom-right-radius: 2px;
+        }
+
+        .ai-msg {
+            color: var(--ai-text);
+            margin: 10px 0;
+            padding: 12px;
+            background: var(--ai-bg);
+            border-radius: 10px;
+            border-bottom-left-radius: 2px;
+            position: relative;
+        }
+
+        /* Copy Button */
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--input-border);
+            color: var(--text-color);
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .copy-btn:hover { opacity: 1; background: var(--btn-bg); color: white; }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid var(--chat-border);
+            border-top: 3px solid var(--btn-bg);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         #input-area { display: flex; gap: 10px; align-items: center; }
-        #user-input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
-        button { padding: 12px 20px; border: none; background-color: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #004494; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        #user-input {
+            flex-grow: 1;
+            padding: 12px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover:not(:disabled) { background-color: var(--btn-hover); }
+        button:disabled { background-color: #888; cursor: not-allowed; opacity: 0.7; }
+
         #mic-btn { background-color: #6c757d; font-size: 20px; padding: 10px 15px; }
         #mic-btn.listening { background-color: #dc3545; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        #tts-container { display: flex; align-items: center; gap: 5px; font-size: 14px; color: #555; margin-bottom: 10px; }
+
+        #tts-container { display: flex; align-items: center; gap: 5px; font-size: 14px; margin-bottom: 10px; }
+        
+        .icon-btn { background: transparent; color: var(--text-color); border: 1px solid var(--input-border); padding: 8px 12px; font-size: 14px;}
+        .icon-btn:hover { background: var(--chat-border); color: var(--text-color); }
     </style>
 </head>
 <body>
-    <h1>My AI Agent</h1>
+    <div class="header">
+        <h1>My AI Agent</h1>
+        <div>
+            <button class="icon-btn" onclick="toggleTheme()" id="theme-toggle">🌙 Dark</button>
+            <button class="icon-btn" onclick="clearChat()">🗑️ Clear Chat</button>
+        </div>
+    </div>
+
     <div id="tts-container">
         <input type="checkbox" id="tts-toggle" checked>
         <label for="tts-toggle">🔊 Speak Agent Responses</label>
     </div>
+
     <div id="chat-box"></div>
+    
     <div id="input-area">
         <button id="mic-btn" onclick="toggleListening()" title="Click to speak">🎤</button>
         <input type="text" id="user-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendMessage()" />
@@ -35,6 +178,27 @@
     </div>
 
     <script>
+        // --- Theme Logic ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        themeToggle.innerText = currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.innerText = newTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+        }
+
+        // --- Clear Chat Logic ---
+        function clearChat() {
+            if (confirm("Are you sure you want to clear the chat? This will not reset the AI's backend memory.")) {
+                document.getElementById('chat-box').innerHTML = '';
+            }
+        }
+
         // --- Speech Recognition ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
@@ -78,6 +242,14 @@
             }
         }
 
+        // --- Copy to Clipboard ---
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerText = '✅ Copied!';
+                setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
+            });
+        }
+
         // --- Main Chat Logic ---
         async function sendMessage() {
             const input = document.getElementById('user-input');
@@ -91,20 +263,32 @@
             sendBtn.disabled = true;
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Show a "thinking" indicator
+            // Show loading spinner
             const aiMsgDiv = document.createElement('div');
             aiMsgDiv.className = 'ai-msg';
-            aiMsgDiv.innerHTML = '<b>Agent:</b> <span class="content"><i>Thinking...</i></span>';
+            aiMsgDiv.innerHTML = '<b>Agent:</b> <span class="content"></span> <div class="spinner"></div>';
             chatBox.appendChild(aiMsgDiv);
             const contentSpan = aiMsgDiv.querySelector('.content');
+            const spinner = aiMsgDiv.querySelector('.spinner');
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
                 const response = await fetch('/api/chat/stream?message=' + encodeURIComponent(message));
                 const fullText = await response.text();
+                
+                spinner.remove(); // Hide spinner when response arrives
                 await typeEffect(contentSpan, fullText);
+                
+                // Add Copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerText = '📋 Copy';
+                copyBtn.onclick = () => copyToClipboard(fullText, copyBtn);
+                aiMsgDiv.appendChild(copyBtn);
+
                 if (fullText.length > 0) speakText(fullText);
             } catch (error) {
+                spinner.remove();
                 contentSpan.innerHTML = "<i>Error connecting to agent.</i>";
             } finally {
                 sendBtn.disabled = false;
