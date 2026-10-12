@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Personal AI Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 50px auto; background-color: #f4f4f9; }
+        #chat-box { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; height: 500px; overflow-y: scroll; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .user-msg { color: #0056b3; margin: 10px 0; padding: 10px; background: #e6f2ff; border-radius: 8px; }
+        .ai-msg { color: #333; margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 8px; }
+        .ai-msg p { margin: 5px 0; }
+        .ai-msg ul { margin: 5px 0; padding-left: 20px; }
+        #input-area { display: flex; gap: 10px; align-items: center; }
+        #user-input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        button { padding: 12px 20px; border: none; background-color: #0056b3; color: white; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #004494; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #mic-btn { background-color: #6c757d; font-size: 20px; padding: 10px 15px; }
+        #mic-btn.listening { background-color: #dc3545; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #tts-container { display: flex; align-items: center; gap: 5px; font-size: 14px; color: #555; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>My AI Agent</h1>
+    <div id="tts-container">
+        <input type="checkbox" id="tts-toggle" checked>
+        <label for="tts-toggle">🔊 Speak Agent Responses</label>
+    </div>
+    <div id="chat-box"></div>
+    <div id="input-area">
+        <button id="mic-btn" onclick="toggleListening()" title="Click to speak">🎤</button>
+        <input type="text" id="user-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendMessage()" />
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        // --- Speech Recognition ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            recognition.onstart = function() { isListening = true; document.getElementById('mic-btn').classList.add('listening'); document.getElementById('mic-btn').innerHTML = '🛑'; };
+            recognition.onresult = function(event) { document.getElementById('user-input').value = event.results[0][0].transcript; sendMessage(); };
+            recognition.onerror = function(event) { console.error(event.error); resetMicUI(); };
+            recognition.onend = function() { resetMicUI(); };
+        } else {
+            document.getElementById('mic-btn').style.display = 'none';
+        }
+        function toggleListening() { if (isListening) recognition.stop(); else recognition.start(); }
+        function resetMicUI() { isListening = false; document.getElementById('mic-btn').classList.remove('listening'); document.getElementById('mic-btn').innerHTML = '🎤'; }
+
+        // --- Text-to-Speech ---
+        function speakText(text) {
+            if (!document.getElementById('tts-toggle').checked) return;
+            const cleanText = text.replace(/[*_#`~\[\]()]/g, '');
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'en-US';
+            utterance.rate = 1.05;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- Simulated Typing Effect ---
+        async function typeEffect(element, fullText, speed = 15) {
+            const words = fullText.split(' ');
+            let currentText = "";
+            element.innerHTML = "";
+            for (let i = 0; i < words.length; i++) {
+                currentText += (i === 0 ? '' : ' ') + words[i];
+                element.innerHTML = marked.parse(currentText);
+                document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+                await new Promise(r => setTimeout(r, speed));
+            }
+        }
+
+        // --- Main Chat Logic ---
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const message = input.value;
+            if (!message) return;
+
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML += `<div class="user-msg"><b>You:</b> ${message}</div>`;
+            input.value = '';
+            sendBtn.disabled = true;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Show a "thinking" indicator
+            const aiMsgDiv = document.createElement('div');
+            aiMsgDiv.className = 'ai-msg';
+            aiMsgDiv.innerHTML = '<b>Agent:</b> <span class="content"><i>Thinking...</i></span>';
+            chatBox.appendChild(aiMsgDiv);
+            const contentSpan = aiMsgDiv.querySelector('.content');
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat/stream?message=' + encodeURIComponent(message));
+                const fullText = await response.text();
+                await typeEffect(contentSpan, fullText);
+                if (fullText.length > 0) speakText(fullText);
+            } catch (error) {
+                contentSpan.innerHTML = "<i>Error connecting to agent.</i>";
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+    </script>
+</body>
+</html>
